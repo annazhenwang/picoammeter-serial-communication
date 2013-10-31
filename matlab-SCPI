@@ -1,0 +1,102 @@
+clc;
+%grid on; 
+strSerialPortNum=input('SerialPort Number:');
+strSerialPortName=['COM',num2str(strSerialPortNum)];
+s=serial(strSerialPortName);
+set(s,'BaudRate',9600,'DataBits',8,'StopBits',1,...
+    'Parity','none','FlowControl','none');   % set properties for serial
+set(s,'timeout',10);
+
+fopen(s);
+num=input('record number:');
+
+% Setting for the primary setting of picoameter
+fprintf(s,'*RST');
+fprintf(s,'FORM:ELEM VSO,READ,UNIT,TIME');
+fprintf(s,'SYST:ZCH ON');
+fprintf(s,'RANG 2e-9');
+fprintf(s,'INIT');
+fprintf(s,'SYST:ZCOR:ACQ');
+fprintf(s,'SYST:ZCH OFF');
+fprintf(s,'SYST:ZCOR ON');
+fprintf(s,'RANG 2e-7');
+fprintf(s,'SYST:TIME:RES ');%make timestampe to 0 s
+fprintf(s,'SYST:AZER OFF'); %disable  autozero
+
+fprintf(s,'AVER OFF'); % disable digital filter
+fprintf(s,'DISP:ENAB OFF');% front panel off
+fprintf(s,'CURR:NPLC 1');
+fprintf(s,'SOUR:VOLT:RANG 500');
+fprintf(s,'SOUR:VOLT 300');
+fprintf(s,'SOUR:VOLT:ILIM 2.5e-3');
+fprintf(s,'SENS:OHMS OFF');
+fprintf(s,'SOUR:VOLT:STAT ON');
+
+
+ filename = date;
+ filenum = input('text number:');
+ fid1=[filename,'and',num2str(filenum),'.txt'];
+ c=fopen(fid1,'wt');
+ expla=['This is a programme for auto-record of Keithley 6487 picoameter, The date for record is ',datestr(now)];
+
+ fprintf(c,'%s\n',expla);
+
+
+
+
+%trigger model: configure ARM and Trigger layers according to Fig 7-2
+
+fprintf(s, 'ARM:SOUR TLINK');
+fprintf(s,'ARM:ILIN 1');
+fprintf(s,'ARM:OLIN 2');
+fprintf(s,'ARM:COUN 1');
+fprintf(s,'ARM:DIR SOUR');
+fprintf(s,'TRIG:SOUR TLINK');
+fprintf(s,'TRIG:ILIN 1');
+fprintf(s,'TRIG:OLIN 2');
+fprintf(s,'TRIG:COUN 1');
+fprintf(s,'TRIG:DIR ACC');
+fprintf(s,'TRIG:DEL 0');
+
+% writing to buffer
+fprintf(s,'TRAC:POIN 1');
+fprintf(s,'TRAC:TST:FORM DELT')
+fprintf(s,'TRAC:FEED SENS');
+fprintf(s,'TRAC:FEED:CONT NEXT');
+% using DELT time. ABS for absolute time
+
+%at this time, press the switch of FPGA.(falling edge will produce 10ns later)
+% add one sentence to remind you to press the switch of FPGA to open FPGA and then close it!
+fprintf('Please press the switch of FPGA to open it and then close it when the light is on ');
+pause(9);
+fprintf(s,'INIT');% give a initi, wait for TLink, then write data into buffer. 
+
+
+%don't need exteranl trigger
+ fprintf(s,'ABOR')
+ fprintf(s,'TRIG:CLE')
+ %fprintf(s,'*RST')
+% fprintf(s,'CURR:NPLC 0.1')
+%fprintf(s,'FORM:ELEM VSO,READ,UNIT,TIME');
+% try to understand whether the following is necessary?
+% using immediate source.
+fprintf(s, 'ARM:SOUR IMM')
+fprintf(s,'ARM:COUN 1')
+fprintf(s,'TRIG:SOUR IMM')
+fprintf(s,'TRIG:COUN 2999')
+fprintf(s,'TRIG:DEL 0')
+fprintf(s,'TRAC:POIN 2999');
+fprintf(s,'TRAC:TST:FORM DELT')
+fprintf(s,'TRAC:FEED SENS');
+fprintf(s,'TRAC:FEED:CONT NEXT');
+fprintf(s,'INIT');
+
+fprintf(s,'TRAC:DATA?') %request all stored readings
+
+
+
+  
+fclose(s);
+delete(s);
+clear s;
+clear all;
